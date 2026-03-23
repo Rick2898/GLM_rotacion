@@ -20,7 +20,6 @@ set.seed(123)
 ```{r, llamada de librerias, echo=FALSE}
 library(paqueteMODELOS)
 library(dplyr)
-data("rotacion")
 library(plotly)
 library(devtools)
 library(summarytools)
@@ -57,6 +56,7 @@ Para lograr identificar todo esto el markdown estará dividido en los siguientes
 6. Predicciones 
 7. Conclusiones 
 ```{r}
+data("rotacion")
 rotacion <- rotacion %>% clean_names()
 ```
 
