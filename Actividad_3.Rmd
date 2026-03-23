@@ -21,6 +21,23 @@ set.seed(123)
 library(paqueteMODELOS)
 library(dplyr)
 data("rotacion")
+library(plotly)
+library(devtools)
+library(summarytools)
+library(DT)
+library(janitor)
+library(tibble)
+
+library(tidyverse)
+library(skimr)
+library(leaflet)
+library(broom)
+library(lmtest)
+library(car)
+library(performance)
+library(Metrics)
+library(rsample)
+library(kableExtra)
 
 ```
 
@@ -39,9 +56,72 @@ Para lograr identificar todo esto el markdown estará dividido en los siguientes
 5. Evaluacion del modelo 
 6. Predicciones 
 7. Conclusiones 
+```{r}
+rotacion <- rotacion %>% clean_names()
+```
 
 
 ## 0. EDA basico sobre todo el data set para poder tener criterio tecnico 
+
+```{r}
+st_options(bootstrap.css = FALSE)
+
+dfSummary(rotacion,
+          varnumbers = TRUE,
+          valid.col = TRUE,
+          na.col = TRUE,
+          graph.col = TRUE) %>%
+  print(method = "render",
+        table.classes = "table table-striped table-hover")
+
+```
+
+Rotacion=Boolean=categorico nominal
+Edad= Entero= cuantitativo
+Viaje de negocios=numerico entero(dummy)= Categorica nominal
+Departamento=numerico entero(dummy)= Categorica nominal 
+Distancia_Casa= numerico= cuantitativo
+Educacion= numerica= categorica ordinal
+Campo_educacion=numerico entero(dummy)= Categorica nominal
+Satisfaccion_ambiental=numerica ordinal= categorica ordinal
+Genero= dummy = categorica nominal
+Cargo= numerica one hot encoding= categorica nominal
+Satisfaccion_laboral=numerica ordinal= categorica ordinal
+estado_civil= numerico dummy= categorico nominal
+ingreso_mensual= numerico= cuantitativo 
+Trabajos_anteriores=numerico=cuantitativo 
+Horas_extra=Boolean=categorica nominal
+Porcentaje_aumento_salarial= numerico = cuantitativo, pasar a %
+Redimiento_laboral=numerico ordinal = categorico ordinal (Vale la pena?) 
+Años_Experiencia=numerico=cuantitativo
+Capacitaciones=Numerica=cuantitativa
+Equilibrio_trabajo_vida=numerica ordinal= categorica ordinal
+Antiguedad=numerica=cuantitativa
+Antiguedad_cargo=numerica=cuantitativa
+anos_ultima_promocion=numerica=cuantitativa
+anos_acargo_con_mismo_jefe=numerica=cuantitativa
+
+
+
+
+
+```{r}
+
+df_filtrado <- rotacion %>%
+  filter(satisfacion_laboral < 3,
+         anos_acargo_con_mismo_jefe > 2,
+         rotacion=="Si")
+
+datatable(df_filtrado,
+          options = list(
+            pageLength = 10,
+            scrollX = TRUE,
+            scrollY = "400px"
+          ),
+          filter = "top",
+          rownames = FALSE)
+```
+
 ## 1. Selección de variables
 ## 2. Analisis Univariado
 ## 3. Analisis Bivariado
