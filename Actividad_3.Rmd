@@ -35,6 +35,8 @@ library(tidyr)
 library(ggplot2)
 library(knitr)
 library(ggstatsplot)
+library(pROC)
+library(corrplot)
 
 
 library(skimr)
@@ -524,8 +526,260 @@ summary(analisis6)
 
 
 ## 4. Estimacion del modelo
+
+### 4.1 Transformacion de las variables con LOG1 para reducir la asimetria, estabilizar la varianza. 
+
+
+```{r}
+modelo <- glm(
+  factor(rotacion) ~ distancia_casa + anos_experiencia + 
+      anos_acargo_con_mismo_jefe +
+     factor(departamento) + factor(satisfacion_laboral)  + factor(horas_extra) ,
+  data = rotacion,
+  family = "binomial"
+)
+
+summary(modelo)
+```
+
+
+```{r}
+
+
+
+rotacion <- rotacion %>%
+  mutate(
+    log_distancia_casa = log1p(distancia_casa),
+    log_anos_experiencia = log1p(anos_experiencia),
+    log_anos_jefe = log1p(anos_acargo_con_mismo_jefe)
+  )
+
+modelo_log <- glm(
+  factor(rotacion) ~ log_distancia_casa + log_anos_experiencia + 
+      log_anos_jefe +
+      factor(departamento) + factor(satisfacion_laboral)  + factor(horas_extra),
+  data = rotacion,
+  family = "binomial"
+)
+
+summary(modelo_log)
+```
+
+
+
+
 ## 5. Evaluacion del modelo 
-## 6. Predicciones 
+
+```{r}
+
+AIC(modelo, modelo_log)
+
+```
+
+```{r}
+# Calcular AIC y BIC de ambos modelos
+aic_tab <- AIC(modelo, modelo_log)
+bic_tab <- BIC(modelo, modelo_log)
+
+# Calcular deltas (diferencias)
+delta_AIC <- abs(aic_tab$AIC[1] - aic_tab$AIC[2])
+delta_BIC <- abs(bic_tab$BIC[1] - bic_tab$BIC[2])
+
+# Funcion de interpretacion
+interpretar_delta <- function(delta) {
+  if (delta >= 0 && delta < 2) {
+    return("Poca evidencia")
+  } else if (delta >= 2 && delta < 6) {
+    return("Evidencia positiva")
+  } else if (delta >= 6 && delta < 10) {
+    return("Evidencia fuerte")
+  } else {
+    return("Evidencia muy fuerte")
+  }
+}
+
+# Tabla final
+resultado <- data.frame(
+  Criterio = c("Delta AIC", "Delta BIC"),
+  Valor = c(round(delta_AIC, 2), round(delta_BIC, 2)),
+  Interpretacion = c(
+    interpretar_delta(delta_AIC),
+    interpretar_delta(delta_BIC)
+  )
+)
+
+resultado
+
+
+```
+
+
+
+
+#```{r}
+
+# Construir datos sin eliminar de más
+datos_roc_log <- rotacion %>%
+  mutate(prob_log = predict(modelo_log, type = "response")) %>%
+  select(rotacion, prob_log)
+
+# Eliminar solo NA necesarios
+datos_roc_log <- datos_roc_log[complete.cases(datos_roc_log), ]
+
+# Verificar clases
+table(datos_roc_log$rotacion)
+
+# ROC
+roc_log <- roc(
+  response = datos_roc_log$rotacion,
+  predictor = datos_roc_log$prob_log,
+  levels = c(0,1),
+  direction = "<"
+)
+
+# AUC
+auc_log <- auc(roc_log)
+
+# Grafico
+plot(
+  roc_log,
+  col = "red",
+  lwd = 2,
+  main = "Curva ROC - Modelo logistico"
+)
+
+# Leyenda (esto es lo que querias)
+legend(
+  "bottomright",
+  legend = paste("AUC =", round(auc_log, 3)),
+  col = "red",
+  lwd = 2,
+  bty = "n"   # opcional: sin caja
+)
+#```
+
+
+
+
+
+```{r}
+
+
+
+conf_df <- as.data.frame(conf)
+
+conf_df <- conf_df %>%
+  mutate(
+    Tipo = case_when(
+      Predicho == 1 & Real == 1 ~ "Verdaderos positivos",
+      Predicho == 0 & Real == 0 ~ "Verdaderos negativos",
+      Predicho == 1 & Real == 0 ~ "Falsos positivos",
+      Predicho == 0 & Real == 1 ~ "Falsos negativos"
+    )
+  )
+
+ggplot(conf_df, aes(x = factor(Real), y = factor(Predicho), fill = Tipo)) +
+  geom_tile(color = "white", size = 1.2) +
+  geom_text(aes(label = Freq), size = 6, fontface = "bold") +
+  scale_fill_manual(values = c(
+    "Verdaderos positivos" = "#2E7D32",   # verde fuerte
+    "Verdaderos negativos" = "#1E88E5",   # azul
+    "Falsos positivos" = "#FB8C00",       # naranja
+    "Falsos negativos" = "#E53935"        # rojo
+  )) +
+  labs(
+    title = "Matriz de confusion del modelo",
+    x = "Valor real",
+    y = "Prediccion"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.title = element_blank(),
+    text = element_text(size = 12),
+    panel.grid = element_blank()
+  )
+
+```
+
+
+## 6. Predicciones
+
+```{r}
+set.seed(123)
+
+generar_individuo_realista <- function(base) {
+  
+  nuevo <- data.frame(
+    distancia_casa = sample(base$distancia_casa, 1),
+    anos_experiencia = sample(base$anos_experiencia, 1),
+    anos_acargo_con_mismo_jefe = sample(base$anos_acargo_con_mismo_jefe, 1),
+    departamento = sample(base$departamento, 1),
+    satisfacion_laboral = sample(base$satisfacion_laboral, 1),
+    horas_extra = sample(base$horas_extra, 1)
+  )
+  
+  nuevo <- nuevo %>%
+    mutate(
+      log_distancia_casa = log1p(distancia_casa),
+      log_anos_experiencia = log1p(anos_experiencia),
+      log_anos_jefe = log1p(anos_acargo_con_mismo_jefe)
+    )
+  
+  return(nuevo)
+}
+
+predecir_individuo <- function(modelo, cutoff = 0.5) {
+  
+  nuevo <- generar_individuo()
+  
+  prob_rotacion <- predict(modelo, newdata = nuevo, type = "response")
+  
+  decision <- ifelse(prob_rotacion > cutoff,
+                     "Intervenir",
+                     "No intervenir")
+  
+  conclusion <- ifelse(prob_rotacion > cutoff,
+                       "El empleado presenta alta probabilidad de rotacion y se recomienda intervencion.",
+                       "El empleado presenta baja probabilidad de rotacion y no requiere intervencion inmediata.")
+  
+  resultado <- nuevo %>%
+    mutate(
+      prob_rotacion = round(as.numeric(prob_rotacion), 4),
+      cutoff = cutoff,
+      decision = decision,
+      conclusion = conclusion
+    ) %>%
+    select(
+      distancia_casa,
+      anos_experiencia,
+      anos_acargo_con_mismo_jefe,
+      departamento,
+      satisfacion_laboral,
+      horas_extra,
+      prob_rotacion,
+      cutoff,
+      decision,
+      conclusion
+    )
+  
+  return(resultado)
+}
+```
+
+```{r}
+predecir_individuo(modelo_log, cutoff = 0.5)
+```
+```{r}
+resultados_pred <- bind_rows(lapply(1:10, function(i) {
+  predecir_individuo(modelo_log, cutoff = 0.5)
+}))
+
+resultados_pred
+```
+
+
+Para la etapa de prediccion se genero un individuo hipotetico de manera aleatoria, asignando valores plausibles a las covariables incluidas en el modelo. Posteriormente, se calculo su probabilidad estimada de rotacion mediante el modelo logit ajustado. Finalmente, se definio un punto de corte de 0.5 para decidir si el empleado requiere intervencion preventiva. Si la probabilidad estimada supera dicho umbral, se recomienda intervenir; de lo contrario, no se considera necesaria una intervencion inmediata.
+
 ## 7. Conclusiones 
 
 
