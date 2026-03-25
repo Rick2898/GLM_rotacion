@@ -17,6 +17,7 @@ options(scipen = 999)
 set.seed(123)
 ```
 
+
 ```{r, llamada de librerias, echo=FALSE}
 library(paqueteMODELOS)
 library(dplyr)
@@ -27,6 +28,12 @@ library(summarytools)
 library(DT)
 library(janitor)
 library(tibble)
+library(moments)
+library(kableExtra)
+library(ggstatsplot)
+library(tidyr)
+library(ggplot2)
+
 
 library(tidyverse)
 library(skimr)
@@ -37,7 +44,7 @@ library(car)
 library(performance)
 library(Metrics)
 library(rsample)
-library(kableExtra)
+
 
 ```
 
@@ -63,7 +70,9 @@ rotacion <- rotacion %>% clean_names()
 
 ## 0. EDA basico sobre todo el data set para poder tener criterio tecnico 
 
-```{r}
+En esta parte se busca entender el dataframe para tener el criterio tecnico de decision de tal forma que se puedan realizar las hipotesis con contexto
+
+```{r, EDA}
 st_options(bootstrap.css = FALSE)
 
 dfSummary(rotacion,
@@ -76,36 +85,68 @@ dfSummary(rotacion,
 
 ```
 
-Rotacion=Boolean=categorico nominal
-Edad= Entero= cuantitativo
-Viaje de negocios=numerico entero(dummy)= Categorica nominal
-Departamento=numerico entero(dummy)= Categorica nominal 
-Distancia_Casa= numerico= cuantitativo
-Educacion= numerica= categorica ordinal
-Campo_educacion=numerico entero(dummy)= Categorica nominal
-Satisfaccion_ambiental=numerica ordinal= categorica ordinal
-Genero= dummy = categorica nominal
-Cargo= numerica one hot encoding= categorica nominal
-Satisfaccion_laboral=numerica ordinal= categorica ordinal
-estado_civil= numerico dummy= categorico nominal
-ingreso_mensual= numerico= cuantitativo 
-Trabajos_anteriores=numerico=cuantitativo 
-Horas_extra=Boolean=categorica nominal
-Porcentaje_aumento_salarial= numerico = cuantitativo, pasar a %
-Redimiento_laboral=numerico ordinal = categorico ordinal (Vale la pena?) 
-Años_Experiencia=numerico=cuantitativo
-Capacitaciones=Numerica=cuantitativa
-Equilibrio_trabajo_vida=numerica ordinal= categorica ordinal
-Antiguedad=numerica=cuantitativa
-Antiguedad_cargo=numerica=cuantitativa
-anos_ultima_promocion=numerica=cuantitativa
-anos_acargo_con_mismo_jefe=numerica=cuantitativa
+Con la exploracion inicial nos podemos dar cuenta que el df debe ser transformado en lectura y en forma de representacion numerica, por lo tanto se ha creado la siguiente tabla con la variable su transformación y tipo.
+
+```{r, Tabla 1}
+diccionario_vars <- tribble(
+  ~Variable, ~Transformacion, ~Tipo,
+  "rotacion", "Boolean", "Categórica nominal",
+  "edad", "Entero", "Cuantitativa",
+  "viaje_de_negocios", "Dummy (entero)", "Categórica nominal",
+  "departamento", "Dummy (entero)", "Categórica nominal",
+  "distancia_casa", "Numérico", "Cuantitativa",
+  "educacion", "Numérico ordinal", "Categórica ordinal",
+  "campo_educacion", "Dummy (entero)", "Categórica nominal",
+  "satisfaccion_ambiental", "Numérico ordinal", "Categórica ordinal",
+  "genero", "Dummy", "Categórica nominal",
+  "cargo", "One-hot encoding", "Categórica nominal",
+  "satisfaccion_laboral", "Numérico ordinal", "Categórica ordinal",
+  "estado_civil", "Dummy (entero)", "Categórica nominal",
+  "ingreso_mensual", "Numérico", "Cuantitativa",
+  "trabajos_anteriores", "Numérico", "Cuantitativa",
+  "horas_extra", "Boolean", "Categórica nominal",
+  "porcentaje_aumento_salarial", "Numérico; convertir a %", "Cuantitativa",
+  "rendimiento_laboral", "Numérico ordinal", "Categórica ordinal",
+  "anos_experiencia", "Numérico", "Cuantitativa",
+  "capacitaciones", "Numérico", "Cuantitativa",
+  "equilibrio_trabajo_vida", "Numérico ordinal", "Categórica ordinal",
+  "antiguedad", "Numérico", "Cuantitativa",
+  "antiguedad_cargo", "Numérico", "Cuantitativa",
+  "anos_ultima_promocion", "Numérico", "Cuantitativa",
+  "anos_acargo_con_mismo_jefe", "Numérico", "Cuantitativa"
+)
+
+datatable(
+  diccionario_vars,
+  rownames = FALSE,
+  filter = "top",
+  extensions = c("FixedHeader"),
+  options = list(
+    pageLength = 24,
+    paging = FALSE,
+    searching = TRUE,
+    ordering = TRUE,
+    info = FALSE,
+    scrollX = TRUE,
+    scrollY = "500px",
+    fixedHeader = FALSE,
+    dom = "ft"
+  ),
+  caption = "Tabla 1: Diccionario de variables y transformación propuesta"
+)%>%
+  formatStyle(
+    "Tipo",
+    target = "row",
+    fontWeight = "bold"
+  )
+```
+
+
+Como parte final del filtrado queremos conocer si la satisfacción laboral, y años a cargo con el mismo jefe estan relacionados con la rotación que se pueden ver en la siguiente tabla, esta es una forma de exploración que se realiza para definir las variables que se usaran en el modelo.
 
 
 
-
-
-```{r}
+```{r, Tabla 2}
 
 df_filtrado <- rotacion %>%
   filter(satisfacion_laboral < 3,
@@ -114,16 +155,186 @@ df_filtrado <- rotacion %>%
 
 datatable(df_filtrado,
           options = list(
-            pageLength = 10,
-            scrollX = TRUE,
-            scrollY = "400px"
-          ),
+    pageLength = 24,
+    paging = FALSE,
+    searching = TRUE,
+    ordering = TRUE,
+    info = FALSE,
+    scrollX = TRUE,
+    scrollY = "500px",
+    fixedHeader = FALSE,
+    dom = "ft"
+  ),
           filter = "top",
-          rownames = FALSE)
+          rownames = FALSE,
+          caption = "Tabla 2: Filtrado inicial data"
+  )
 ```
 
+
+    
 ## 1. Selección de variables
+Seleccionaremos 3 variables cuantitativas para el estudio.
+
+  1. **Distancia a la casa** :    *se espera que la distancia entre la vivienda y el lugar de trabajo este positivamente relacionada con la rotacion, debido al desgaste asociado al tiempo de desplazamiento diario. Es decir, a mayor distancia, mayor probabilidad de rotacion.*
+    
+    
+  2. **Años de experiencia** :    *se espera que los años de experiencia estén negativamente relacionados con la rotación, ya que los empleados con mayor trayectoria tienden a tener mayor estabilidad laboral. Es decir, a mayor experiencia, menor probabilidad de rotación.*
+  
+  
+  3. **Años a cargo con mismo jefe** :    *se espera que el tiempo bajo el mismo jefe influya en la rotación, de modo que periodos cortos puedan asociarse con mayor probabilidad de rotación, mientras que una mayor permanencia podría indicar estabilidad laboral*
+
+Seleccionaremos 3 variables cualitativas para el estudio.
+
+  1. **Departamento** :   *se espera que el departamento esté asociado con la rotación, dado que las condiciones laborales, cargas de trabajo y niveles de presión pueden variar entre áreas*
+  
+  2. **Satisfaccion laboral** :   *se espera que niveles bajos de satisfacción laboral estén asociados con una mayor probabilidad de rotación.*
+  
+  3. **Horas Extra** :    *se espera que la realización frecuente de horas extra esté positivamente relacionada con la rotación, debido al desgaste físico y emocional que estas generan.*
+
 ## 2. Analisis Univariado
+
+### Variable de **DISTANCIA**
+
+Realizamos los siguientes graficos resumen en donde usamos el raincloudgraph para poder resumir rapidamente las variables cuantitativas 
+
+
+
+```{r, Grafico 1, fig.cap="Gráfico 1: Raincloud variables cuantitativas"}
+
+datos_long <- rotacion %>%
+  select(distancia_casa, anos_experiencia, anos_acargo_con_mismo_jefe) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "valor"
+  ) %>%
+  mutate(
+    variable = case_when(
+      variable == "distancia_casa" ~ "Distancia a la casa",
+      variable == "anos_experiencia" ~ "Anos de experiencia",
+      variable == "anos_acargo_con_mismo_jefe" ~ "Anos con el mismo jefe"
+    )
+  )
+
+ggplot(datos_long, aes(y = valor)) +
+  geom_violin(aes(x = 0), fill = "lightblue", alpha = 0.5, width = 0.8) +
+  geom_boxplot(aes(x = 0.08), width = 0.08, fill = "white", outlier.shape = NA) +
+  geom_jitter(aes(x = 0.18), width = 0.03, alpha = 0.30, size = 1, color = "darkblue") +
+  scale_x_continuous(breaks = NULL) +
+  facet_wrap(~ variable, scales = "free_y", nrow = 1) +
+  labs(
+    title = "Raincloud de variables cuantitativas",
+    x = "",
+    y = "Valor"
+  ) +
+  theme_minimal()
+```
+
+Se puede ver que los años con el mismo jefe son muy importantes puesto que hay concentracion en valores bajos lo que quiere decir que los empleados no permanece mucho con un mismo jefe. Los años de experiencia es una variable altamente variable lo que puede indicar variedad de perfiles entre junior, senior y mid level. La variable distancia a la casas tiene alta asimetria y outliers por lo que puede afectar los supuestos del modelo logistico y sus estimadores, de tal forma que hay que considerar realizar una transofrmacion logaritmica para reducir la asimetria, bajar la influencia de outliers y asi mejorar la realacion lineal existente
+
+El resumen de los datos descriptivos de la variable estan en la Tabla 3
+
+```{r, Tabla 3}
+
+# Función para contar atípicos con regla IQR
+contar_atipicos <- function(x) {
+  x <- x[!is.na(x)]
+  Q1 <- quantile(x, 0.25)
+  Q3 <- quantile(x, 0.75)
+  IQR_val <- IQR(x)
+  
+  limite_inf <- Q1 - 1.5 * IQR_val
+  limite_sup <- Q3 + 1.5 * IQR_val
+  
+  sum(x < limite_inf | x > limite_sup)
+}
+
+tabla_desc <- data.frame(
+  Variable = c("distancia_casa", "años experiencia", "años mismo jefe"),
+  N = c(
+    sum(!is.na(rotacion$distancia_casa)),
+    sum(!is.na(rotacion$anos_experiencia)),
+    sum(!is.na(rotacion$anos_acargo_con_mismo_jefe))
+  ),
+  Media = c(
+    mean(rotacion$distancia_casa, na.rm = TRUE),
+    mean(rotacion$anos_experiencia, na.rm = TRUE),
+    mean(rotacion$anos_acargo_con_mismo_jefe, na.rm = TRUE)
+  ),
+  Mediana = c(
+    median(rotacion$distancia_casa, na.rm = TRUE),
+    median(rotacion$anos_experiencia, na.rm = TRUE),
+    median(rotacion$anos_acargo_con_mismo_jefe, na.rm = TRUE)
+  ),
+  Desv_Est = c(
+    sd(rotacion$distancia_casa, na.rm = TRUE),
+    sd(rotacion$anos_experiencia, na.rm = TRUE),
+    sd(rotacion$anos_acargo_con_mismo_jefe, na.rm = TRUE)
+  ),
+  Min = c(
+    min(rotacion$distancia_casa, na.rm = TRUE),
+    min(rotacion$anos_experiencia, na.rm = TRUE),
+    min(rotacion$anos_acargo_con_mismo_jefe, na.rm = TRUE)
+  ),
+  Max = c(
+    max(rotacion$distancia_casa, na.rm = TRUE),
+    max(rotacion$anos_experiencia, na.rm = TRUE),
+    max(rotacion$anos_acargo_con_mismo_jefe, na.rm = TRUE)
+  ),
+  Skewness = c(
+    skewness(rotacion$distancia_casa, na.rm = TRUE),
+    skewness(rotacion$anos_experiencia, na.rm = TRUE),
+    skewness(rotacion$anos_acargo_con_mismo_jefe, na.rm = TRUE)
+  ),
+  Curtosis = c(
+    kurtosis(rotacion$distancia_casa, na.rm = TRUE),
+    kurtosis(rotacion$anos_experiencia, na.rm = TRUE),
+    kurtosis(rotacion$anos_acargo_con_mismo_jefe, na.rm = TRUE)
+  ),
+  Atipicos = c(
+    contar_atipicos(rotacion$distancia_casa),
+    contar_atipicos(rotacion$anos_experiencia),
+    contar_atipicos(rotacion$anos_acargo_con_mismo_jefe)
+  )
+)
+
+tabla_desc[, -1] <- round(tabla_desc[, -1], 2)
+
+kable(
+  tabla_desc,
+  caption = "Tabla 3. Estadísticos descriptivos de las variables cuantitativas seleccionadas",
+  align = "lccccccccc"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+
+```{r}
+# Tabla de frecuencias
+tabla_cat <- list(
+  departamento = table(rotacion$departamento),
+  satisfacion_laboral = table(rotacion$satisfacion_laboral),
+  horas_extra = table(rotacion$horas_extra)
+)
+
+# Proporciones
+tabla_prop <- list(
+  departamento = prop.table(table(rotacion$departamento)),
+  satisfacion_laboral = prop.table(table(rotacion$satisfacion_laboral)),
+  horas_extra = prop.table(table(rotacion$horas_extra))
+)
+
+tabla_cat
+tabla_prop
+```
+
+
+FALTA CATEGORICAS OJO 
 ## 3. Analisis Bivariado
 ## 4. Estimacion del modelo
 ## 5. Evaluacion del modelo 
