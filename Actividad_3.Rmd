@@ -33,9 +33,10 @@ library(kableExtra)
 library(ggstatsplot)
 library(tidyr)
 library(ggplot2)
+library(knitr)
+library(ggstatsplot)
 
 
-library(tidyverse)
 library(skimr)
 library(leaflet)
 library(broom)
@@ -231,7 +232,88 @@ ggplot(datos_long, aes(y = valor)) +
   theme_minimal()
 ```
 
-Se puede ver que los años con el mismo jefe son muy importantes puesto que hay concentracion en valores bajos lo que quiere decir que los empleados no permanece mucho con un mismo jefe. Los años de experiencia es una variable altamente variable lo que puede indicar variedad de perfiles entre junior, senior y mid level. La variable distancia a la casas tiene alta asimetria y outliers por lo que puede afectar los supuestos del modelo logistico y sus estimadores, de tal forma que hay que considerar realizar una transofrmacion logaritmica para reducir la asimetria, bajar la influencia de outliers y asi mejorar la realacion lineal existente
+En el grafico 1 se observa como las 3 variables presentan distribucion asimentrica con atipicos, especialmente en la distancia a la casa y años de experiencia. La concentracion esta en varoles bajos en la variable años con el mismo jefe lo cual sugiere baja permanencia con un mismo jefe que se verificara mas adelante
+
+
+```{r, Grafico 2, fig.cap="Gráfico 2: Distancia a la casa segun rotacion"}
+ggbetweenstats(
+  data = rotacion,
+  x = rotacion,
+  y = distancia_casa,
+  type = "nonparametric",
+  pairwise.comparisons = FALSE,
+  centrality.plotting = TRUE,
+  bf.message = FALSE,
+  messages = FALSE,
+  point.args = list(
+    position = position_jitter(width = 0.15),
+    alpha = 0.25,
+    size = 1.2
+  ),
+  violin.args = list(alpha = 0.4),
+  boxplot.args = list(width = 0.15, alpha = 0.6),
+  title = "Distancia a la casa segun rotacion",
+  xlab = "Rotacion",
+  ylab = "Valor"
+)
+```
+
+En el grafico 2 podemos ver como hay mas rotacion con las personas que viven mas lejos de entrada la mediana es mayor y hay algunos puntos atipicos
+
+
+```{r, Grafico 3,  fig.cap="Gráfico 3: Anos de experiencia segun rotacion"}
+ggbetweenstats(
+  data = rotacion,
+  x = rotacion,
+  y = anos_experiencia,
+  type = "nonparametric",
+  pairwise.comparisons = FALSE,
+  centrality.plotting = TRUE,
+  bf.message = FALSE,
+  messages = FALSE,
+  point.args = list(
+    position = position_jitter(width = 0.15),
+    alpha = 0.25,
+    size = 1.2
+  ),
+  violin.args = list(alpha = 0.4),
+  boxplot.args = list(width = 0.15, alpha = 0.6),
+  title = "Anos de experiencia segun rotacion",
+  xlab = "Rotacion",
+  ylab = "Valor"
+)
+```
+
+
+Los años de experiencia en general nos idican como a mayor cantidad de años hay menor rotacion, teniendo una relacion negativa entre años y rotacion 
+
+```{r, Grafico 4, fig.cap="Gráfico 4: Anos con el mismo jefe segun rotacion"}
+ggbetweenstats(
+  data = rotacion,
+  x = rotacion,
+  y = anos_acargo_con_mismo_jefe,
+  type = "nonparametric",
+  pairwise.comparisons = FALSE,
+  centrality.plotting = TRUE,
+  bf.message = FALSE,
+  messages = FALSE,
+  point.args = list(
+    position = position_jitter(width = 0.15),
+    alpha = 0.25,
+    size = 1.2
+  ),
+  violin.args = list(alpha = 0.4),
+  boxplot.args = list(width = 0.15, alpha = 0.6),
+  title = "Anos con el mismo jefe segun rotacion",
+  xlab = "Rotacion",
+  ylab = "Valor"
+)
+```
+
+
+Se puede ver que los años con el mismo jefe son muy importantes puesto que hay concentracion en valores bajos lo que quiere decir que los empleados no permanece mucho con un mismo jefe. 
+
+**La variable distancia a la casas tiene alta asimetria y outliers por lo que puede afectar los supuestos del modelo logistico y sus estimadores, de tal forma que hay que considerar realizar una transofrmacion logaritmica para reducir la asimetria, bajar la influencia de outliers y asi mejorar la realacion lineal existente**
 
 El resumen de los datos descriptivos de la variable estan en la Tabla 3
 
@@ -314,28 +396,133 @@ kable(
 ```
 
 
-```{r}
-# Tabla de frecuencias
-tabla_cat <- list(
-  departamento = table(rotacion$departamento),
-  satisfacion_laboral = table(rotacion$satisfacion_laboral),
-  horas_extra = table(rotacion$horas_extra)
-)
 
-# Proporciones
-tabla_prop <- list(
-  departamento = prop.table(table(rotacion$departamento)),
-  satisfacion_laboral = prop.table(table(rotacion$satisfacion_laboral)),
-  horas_extra = prop.table(table(rotacion$horas_extra))
-)
+En las Tablas 4, 5 y 6 se presentan las distribuciones de frecuencia y proporción de las variables categóricas seleccionadas. Estas permiten identificar la concentración de observaciones en cada categoría y posibles desequilibrios en la muestra. Estos datos pueden ser verificados en el EDA inicial, aun asi se decide incluirlo para continuar con el hilo del analisis planteado.
 
-tabla_cat
-tabla_prop
+
+```{r, Tabla 4}
+tabla_departamento <- rotacion %>%
+  count(departamento) %>%
+  mutate(Proporcion = n / sum(n)) %>%
+  rename(Categoria = departamento, Frecuencia = n)
+
+kable(tabla_departamento,
+      caption = "Tabla 4. Distribucion de la variable Departamento",
+      align = "lcc") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+```{r, Tabla 5}
+tabla_satisfaccion <- rotacion %>%
+  count(satisfacion_laboral) %>%
+  mutate(Proporcion = n / sum(n)) %>%
+  rename(Categoria = satisfacion_laboral, Frecuencia = n)
+
+kable(tabla_satisfaccion,
+      caption = "Tabla 5. Distribucion de la variable Satisfaccion Laboral",
+      align = "lcc") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
+
 ```
 
 
-FALTA CATEGORICAS OJO 
+```{r, Tabla 6}
+
+
+tabla_horas <- rotacion %>%
+  count(horas_extra) %>%
+  mutate(Proporcion = n / sum(n)) %>%
+  rename(Categoria = horas_extra, Frecuencia = n)
+
+kable(tabla_horas,
+      caption = "Tabla 6. Distribucion de la variable Horas Extra",
+      align = "lcc") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+
+```{r}
+
+par(mfrow = c(1, 4))
+
+barplot(table(rotacion$satisfacion_laboral),
+        main = "Satisfacción laboral",
+        xlab = "Categorías",
+        ylab = "Frecuencia",
+        col = "lightblue")
+
+barplot(table(rotacion$departamento),
+        main = "Departamento",
+        xlab = "Categorías",
+        ylab = "Frecuencia",
+        col = "lightgreen",
+        las = 2)
+
+barplot(table(rotacion$horas_extra),
+        main = "Horas extra",
+        xlab = "Categorías",
+        ylab = "Frecuencia",
+        col = "lightpink")
+
+barplot(table(rotacion$rotacion),
+        main = "rotacion",
+        xlab = "categorias",
+        ylab = "Frecuencia",
+        col = "lightyellow")
+```
+
 ## 3. Analisis Bivariado
+
+A continuacion 
+
+```{r}
+rotacion$rotacion <- ifelse(rotacion$rotacion == "Si", 1, 0)
+```
+
+
+```{r}
+analisis1 <- glm(factor(rotacion) ~ distancia_casa, data = rotacion, family = binomial)
+summary(analisis1)
+```
+
+```{r}
+analisis2 <- glm(factor(rotacion) ~ anos_experiencia, data = rotacion, family = binomial)
+summary(analisis2)
+```
+
+```{r}
+analisis3 <- glm(factor(rotacion) ~ anos_acargo_con_mismo_jefe, data = rotacion, family = binomial)
+summary(analisis3)
+```
+
+```{r}
+analisis4 <- glm(factor(rotacion) ~ factor(satisfacion_laboral), data = rotacion, family = binomial)
+summary(analisis4)
+```
+
+```{r}
+analisis5 <- glm(factor(rotacion) ~ factor(departamento), data = rotacion, family = binomial)
+summary(analisis5)
+```
+
+```{r}
+analisis6 <- glm(factor(rotacion) ~ factor(horas_extra), data = rotacion, family = binomial)
+summary(analisis6)
+```
+
+
 ## 4. Estimacion del modelo
 ## 5. Evaluacion del modelo 
 ## 6. Predicciones 
