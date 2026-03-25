@@ -616,47 +616,6 @@ resultado
 
 
 
-#```{r}
-
-# Construir datos sin eliminar de más
-datos_roc_log <- rotacion %>%
-  mutate(prob_log = predict(modelo_log, type = "response")) %>%
-  select(rotacion, prob_log)
-
-# Eliminar solo NA necesarios
-datos_roc_log <- datos_roc_log[complete.cases(datos_roc_log), ]
-
-# Verificar clases
-table(datos_roc_log$rotacion)
-
-# ROC
-roc_log <- roc(
-  response = datos_roc_log$rotacion,
-  predictor = datos_roc_log$prob_log,
-  levels = c(0,1),
-  direction = "<"
-)
-
-# AUC
-auc_log <- auc(roc_log)
-
-# Grafico
-plot(
-  roc_log,
-  col = "red",
-  lwd = 2,
-  main = "Curva ROC - Modelo logistico"
-)
-
-# Leyenda (esto es lo que querias)
-legend(
-  "bottomright",
-  legend = paste("AUC =", round(auc_log, 3)),
-  col = "red",
-  lwd = 2,
-  bty = "n"   # opcional: sin caja
-)
-#```
 
 
 
@@ -664,41 +623,35 @@ legend(
 
 ```{r}
 
+datos_roc_log <- rotacion %>%
+  mutate(prob_log = predict(modelo_log, type = "response")) %>%
+  select(rotacion, prob_log)
 
+datos_roc_log <- datos_roc_log[complete.cases(datos_roc_log), ]
 
-conf_df <- as.data.frame(conf)
+roc_log <- pROC::roc(
+  response = datos_roc_log$rotacion,
+  predictor = datos_roc_log$prob_log,
+  levels = c(0, 1),
+  direction = "<"
+)
 
-conf_df <- conf_df %>%
-  mutate(
-    Tipo = case_when(
-      Predicho == 1 & Real == 1 ~ "Verdaderos positivos",
-      Predicho == 0 & Real == 0 ~ "Verdaderos negativos",
-      Predicho == 1 & Real == 0 ~ "Falsos positivos",
-      Predicho == 0 & Real == 1 ~ "Falsos negativos"
-    )
-  )
+auc_log <- pROC::auc(roc_log)
 
-ggplot(conf_df, aes(x = factor(Real), y = factor(Predicho), fill = Tipo)) +
-  geom_tile(color = "white", size = 1.2) +
-  geom_text(aes(label = Freq), size = 6, fontface = "bold") +
-  scale_fill_manual(values = c(
-    "Verdaderos positivos" = "#2E7D32",   # verde fuerte
-    "Verdaderos negativos" = "#1E88E5",   # azul
-    "Falsos positivos" = "#FB8C00",       # naranja
-    "Falsos negativos" = "#E53935"        # rojo
-  )) +
-  labs(
-    title = "Matriz de confusion del modelo",
-    x = "Valor real",
-    y = "Prediccion"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.title = element_blank(),
-    text = element_text(size = 12),
-    panel.grid = element_blank()
-  )
+plot(
+  roc_log,
+  col = "red",
+  lwd = 2,
+  main = "Curva ROC - Modelo logistico"
+)
 
+legend(
+  "bottomright",
+  legend = paste("AUC =", round(as.numeric(auc_log), 3)),
+  col = "red",
+  lwd = 2,
+  bty = "n"
+)
 ```
 
 
@@ -707,15 +660,26 @@ ggplot(conf_df, aes(x = factor(Real), y = factor(Predicho), fill = Tipo)) +
 ```{r}
 set.seed(123)
 
-generar_individuo_realista <- function(base) {
+generar_individuo <- function() {
+  
+  departamento_h <- c("IyD", "RH", "Ventas")
+  satisfacion_laboral_h <- c(1, 2, 3, 4)
+  horas_extra_h <- c("No", "Si")
+  
+  distancia_casa_a <- sample(1:29, 1)
+  anos_experiencia_a <- sample(0:40, 1)
+  anos_acargo_con_mismo_jefe_a <- sample(0:17, 1)
+  departamento_a <- sample(departamento_h, 1)
+  satisfacion_laboral_a <- sample(satisfacion_laboral_h, 1)
+  horas_extra_a <- sample(horas_extra_h, 1)
   
   nuevo <- data.frame(
-    distancia_casa = sample(base$distancia_casa, 1),
-    anos_experiencia = sample(base$anos_experiencia, 1),
-    anos_acargo_con_mismo_jefe = sample(base$anos_acargo_con_mismo_jefe, 1),
-    departamento = sample(base$departamento, 1),
-    satisfacion_laboral = sample(base$satisfacion_laboral, 1),
-    horas_extra = sample(base$horas_extra, 1)
+    distancia_casa = distancia_casa_a,
+    anos_experiencia = anos_experiencia_a,
+    anos_acargo_con_mismo_jefe = anos_acargo_con_mismo_jefe_a,
+    departamento = departamento_a,
+    satisfacion_laboral = satisfacion_laboral_a,
+    horas_extra = horas_extra_a
   )
   
   nuevo <- nuevo %>%
