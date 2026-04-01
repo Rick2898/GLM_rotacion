@@ -10,7 +10,7 @@ output:
     toc_float:
       collapsed: false
       smooth_scroll: true
-    number_sections: true
+    number_sections: false
     code_folding : show
 ---
 
@@ -67,7 +67,7 @@ Para lograr identificar todo esto el markdown estará dividido en los siguientes
 2. Analisis Univariado
 3. Analisis Bivariado
 4. Estimacion del modelo
-5. Evaluacion del modelo 
+5. Evaluacion del modelo
 6. Predicciones 
 7. Conclusiones 
 ```{r}
@@ -464,21 +464,21 @@ kable(tabla_horas,
 par(mfrow = c(1, 4))
 
 barplot(table(rotacion$satisfacion_laboral),
-        main = "Satisfacción laboral",
-        xlab = "Categorías",
+        main = "Satisfaccion laboral",
+        xlab = "Categorias",
         ylab = "Frecuencia",
         col = "lightblue")
 
 barplot(table(rotacion$departamento),
         main = "Departamento",
-        xlab = "Categorías",
+        xlab = "Categorias",
         ylab = "Frecuencia",
         col = "lightgreen",
         las = 2)
 
 barplot(table(rotacion$horas_extra),
         main = "Horas extra",
-        xlab = "Categorías",
+        xlab = "Categorias",
         ylab = "Frecuencia",
         col = "lightpink")
 
@@ -489,11 +489,10 @@ barplot(table(rotacion$rotacion),
         col = "lightyellow")
 ```
 
+El gráfico evidencia que las categorías más frecuentes corresponden a niveles altos de satisfacción laboral, al departamento de IyD, a empleados que no realizan horas extra y, principalmente, a empleados que no rotan. En particular, la variable rotación presenta un claro desbalance entre clases, ya que la categoría “No” concentra la mayor parte de las observaciones. Esto sugiere que, aunque la rotación está presente, se trata de un evento menos frecuente dentro de la muestra analizada.
+
+
 ## 3. Analisis Bivariado
-
-
-
-A continuacion 
 
 ```{r}
 datos <- rotacion
@@ -547,7 +546,7 @@ tabla_modelos <- tabla_modelos %>%
 kable(
   tabla_modelos,
   format = "html",
-  caption = "Tabla X. Resultados de los modelos logisticos bivariados para la rotacion del personal",
+  caption = "Tabla 7. Resultados de los modelos logisticos bivariados para la rotacion del personal",
   col.names = c(
     "Modelo", "Termino", "Coeficiente", "Error estandar", "Estadistico z",
     "p-valor", "Odds Ratio", "Devianza nula", "Devianza residual", "AIC"
@@ -580,7 +579,7 @@ En conjunto, los resultados bivariados evidencian que la rotación del personal 
 
 ## 4. Estimacion del modelo
 
-### 4.1 Transformacion de las variables con LOG1 para reducir la asimetria, estabilizar la varianza. 
+### 4.1 Estimacion del modelo con todas las variables elegidas
 
 ```{r}
 set.seed(123)
@@ -629,7 +628,7 @@ kable(
   tabla_modelo,
   format = "html",
   caption = paste0(
-    "Tabla X. Resultados del modelo logístico múltiple para la rotación del personal. ",
+    "Tabla 8. Resultados del modelo logístico múltiple para la rotación del personal. ",
     "Devianza nula = ", null_dev,
     ", Devianza residual = ", resid_dev,
     ", AIC = ", aic_modelo, "."
@@ -652,7 +651,7 @@ kable(
 
 Los resultados del modelo logístico múltiple muestran que las covariables estadísticamente significativas asociadas a la rotación fueron los años de experiencia, el departamento de Ventas, la satisfacción laboral y la realización de horas extra. En particular, los años de experiencia presentan un efecto negativo, indicando que a mayor experiencia disminuyen los odds de rotación. Por el contrario, pertenecer al departamento de Ventas y realizar horas extra incrementan significativamente los odds de rotación, siendo esta última la variable de mayor impacto en el modelo. Asimismo, mayores niveles de satisfacción laboral se asocian con menores odds de rotación. En cambio, la distancia a la casa y los años a cargo con el mismo jefe mostraron una significancia marginal, mientras que el departamento de RH no resultó significativo.
 
-## 4.3 Modelo logístico múltiple con variables transformadas para la rotación del personal
+### 4.3 Modelo logístico múltiple con variables transformadas para la rotación del personal
 
 ```{r}
 # Ajustar modelo con variables transformadas
@@ -700,7 +699,7 @@ kable(
   tabla_modelo_log,
   format = "html",
   caption = paste0(
-    "Tabla X. Resultados del modelo logístico múltiple con variables transformadas para la rotación del personal. ",
+    "Tabla 9. Resultados del modelo logístico múltiple con variables transformadas para la rotación del personal. ",
     "Devianza nula = ", null_dev,
     ", Devianza residual = ", resid_dev,
     ", AIC = ", aic_modelo, "."
@@ -730,7 +729,18 @@ Los resultados del modelo logístico múltiple con variables transformadas muest
 
 ```{r}
 
-AIC(modelo, modelo_log)
+kable(
+  AIC(modelo, modelo_log),
+  format = "html",
+  caption = "Tabla 10. Comparacion del criterio de informacion de Akaike (AIC) entre el modelo original y el modelo con variables transformadas",
+  col.names = c("Modelo", "Grados de libertad", "AIC"),
+  align = "lcc"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
 
 ```
 
@@ -746,7 +756,7 @@ bic_tab <- BIC(modelo, modelo_log)
 delta_AIC <- abs(aic_tab$AIC[1] - aic_tab$AIC[2])
 delta_BIC <- abs(bic_tab$BIC[1] - bic_tab$BIC[2])
 
-# Funcion de interpretacion
+# Función de interpretación
 interpretar_delta <- function(delta) {
   if (delta >= 0 && delta < 2) {
     return("Poca evidencia")
@@ -769,7 +779,19 @@ resultado <- data.frame(
   )
 )
 
-resultado
+# Tabla bonita
+kable(
+  resultado,
+  format = "html",
+  caption = "Tabla 11. Comparacion del modelo original y el modelo con variables transformadas mediante Delta AIC y Delta BIC",
+  col.names = c("Criterio", "Valor", "Interpretacion"),
+  align = "lcc"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
 
 
 ```
@@ -857,7 +879,7 @@ ggplot(mc_df, aes(x = Prediccion, y = Real, fill = tipo)) +
     )
   ) +
   labs(
-    title = "Matriz de Confusion",
+    title = "Grafico 6. Matriz de Confusion",
     x = "Predicciones",
     y = "Resultados Reales",
     fill = "Clasificacion"
@@ -900,12 +922,31 @@ tabla_cutoffs <- lapply(cutoffs, function(corte) {
 })
 
 tabla_cutoffs <- do.call(rbind, tabla_cutoffs)
-tabla_cutoffs
+
+kable(
+  tabla_cutoffs,
+  format = "html",
+  caption = "Tabla 12. Comparacion de metricas de desempeno del modelo para diferentes puntos de corte",
+  col.names = c(
+    "Cutoff",
+    "Sensibilidad",
+    "Especificidad",
+    "Accuracy",
+    "Precision",
+    "% intervenidos"
+  ),
+  align = "c"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
 ```
 
 La tabla evidencia un compromiso entre sensibilidad y especificidad según el punto de corte seleccionado. Cutoffs bajos aumentan la sensibilidad y permiten detectar más empleados en riesgo, pero incrementan significativamente el porcentaje de intervención. Por el contrario, cutoffs altos mejoran la especificidad y la precisión, aunque reducen la capacidad del modelo para identificar casos reales de rotación. Considerando que el objetivo del análisis es detectar empleados en riesgo sin intervenir una proporción excesiva de la plantilla, el cutoff de 0.35 se considera el más adecuado, ya que ofrece un equilibrio razonable entre sensibilidad, especificidad, accuracy y porcentaje de empleados intervenidos. 
 
-El cutoff de la matriz de confusion se escogio teniendo en cuenta esta tabla debido a que tambien hay que tener en cuenta que los recursos en una empresa son limitados por lo que se escogio un cutoff razonable.
+El cutoff de la matriz de confusion se escogio teniendo en cuenta esta tabla debido a que tambien hay que tener en cuenta que los recursos en una empresa son limitados por lo que se escogio un cutoff razonable de 0.35.
 
 ### 5.4 Curva ROC
 
@@ -933,7 +974,7 @@ plot(
   roc_log,
   col = "red",
   lwd = 2,
-  main = "Curva ROC - Modelo logistico"
+  main = "Grafico 7. Curva ROC - Modelo logistico"
 )
 
 legend(
@@ -988,7 +1029,7 @@ generar_individuo <- function() {
   return(nuevo)
 }
 
-predecir_individuo <- function(modelo, cutoff = 0.5) {
+predecir_individuo <- function(modelo, cutoff = 0.35) {
   
   nuevo <- generar_individuo()
   
@@ -999,8 +1040,8 @@ predecir_individuo <- function(modelo, cutoff = 0.5) {
                      "No intervenir")
   
   conclusion <- ifelse(prob_rotacion > cutoff,
-                       "El empleado presenta alta probabilidad de rotacion y se recomienda intervencion.",
-                       "El empleado presenta baja probabilidad de rotacion y no requiere intervencion inmediata.")
+                       "Alta probabilidad de rotacion",
+                       "Baja probabilidad de rotacion")
   
   resultado <- nuevo %>%
     mutate(
@@ -1029,7 +1070,30 @@ resultados_pred <- bind_rows(lapply(1:10, function(i) {
   predecir_individuo(modelo_log, cutoff = 0.35)
 }))
 
-resultados_pred
+kable(
+  resultados_pred,
+  format = "html",
+  caption = "Tabla 13. Predicciones de rotacion para empleados hipoteticos generados aleatoriamente",
+  col.names = c(
+    "Distancia a casa",
+    "Anos experiencia",
+    "Anos con mismo jefe",
+    "Departamento",
+    "Satisfaccion laboral",
+    "Horas extra",
+    "Prob. rotacion",
+    "Cutoff",
+    "Decision",
+    "Conclusion"
+  ),
+  align = "c"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  scroll_box(width = "100%", height = "400px")
 ```
 
 
