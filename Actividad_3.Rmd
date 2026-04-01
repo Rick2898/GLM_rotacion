@@ -651,7 +651,7 @@ kable(
 
 ```{r}
 # Ajustar modelo con variables transformadas
-rotacion <- rotacion %>%
+train <- train %>%
   mutate(
     log_distancia_casa = log1p(distancia_casa),
     log_anos_experiencia = log1p(anos_experiencia),
@@ -771,16 +771,19 @@ resultado
 
 
 ```{r}
+test <- test %>%
+  mutate(
+    log_distancia_casa = log1p(distancia_casa),
+    log_anos_experiencia = log1p(anos_experiencia),
+    log_anos_jefe = log1p(anos_acargo_con_mismo_jefe),
+    rotacion_bin = ifelse(rotacion == "Si", 1, 0)
+  )
 
-datos_roc_log <- rotacion %>%
-  mutate(prob_log = predict(modelo_log, type = "response")) %>%
-  select(rotacion, prob_log)
-
-datos_roc_log <- datos_roc_log[complete.cases(datos_roc_log), ]
+test$prob_log <- predict(modelo_log, newdata = test, type = "response")
 
 roc_log <- pROC::roc(
-  response = datos_roc_log$rotacion,
-  predictor = datos_roc_log$prob_log,
+  response = test$rotacion_bin,
+  predictor = test$prob_log,
   levels = c(0, 1),
   direction = "<"
 )
@@ -791,7 +794,7 @@ plot(
   roc_log,
   col = "red",
   lwd = 2,
-  main = "Curva ROC - Modelo logistico"
+  main = "Curva ROC - Modelo logístico"
 )
 
 legend(
