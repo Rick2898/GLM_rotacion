@@ -547,9 +547,9 @@ tabla_modelos <- tabla_modelos %>%
 kable(
   tabla_modelos,
   format = "html",
-  caption = "Tabla X. Resultados de los modelos logísticos bivariados para la rotación del personal",
+  caption = "Tabla X. Resultados de los modelos logisticos bivariados para la rotacion del personal",
   col.names = c(
-    "Modelo", "Término", "Coeficiente", "Error estándar", "Estadístico z",
+    "Modelo", "Termino", "Coeficiente", "Error estandar", "Estadistico z",
     "p-valor", "Odds Ratio", "Devianza nula", "Devianza residual", "AIC"
   ),
   align = "l"
@@ -648,6 +648,11 @@ kable(
   scroll_box(width = "100%", height = "400px")
 ```
 
+### 4.2 Interpretacion de los coeficientes del modelo e identificacion de las covariables significativas
+
+Los resultados del modelo logístico múltiple muestran que las covariables estadísticamente significativas asociadas a la rotación fueron los años de experiencia, el departamento de Ventas, la satisfacción laboral y la realización de horas extra. En particular, los años de experiencia presentan un efecto negativo, indicando que a mayor experiencia disminuyen los odds de rotación. Por el contrario, pertenecer al departamento de Ventas y realizar horas extra incrementan significativamente los odds de rotación, siendo esta última la variable de mayor impacto en el modelo. Asimismo, mayores niveles de satisfacción laboral se asocian con menores odds de rotación. En cambio, la distancia a la casa y los años a cargo con el mismo jefe mostraron una significancia marginal, mientras que el departamento de RH no resultó significativo.
+
+## 4.3 Modelo logístico múltiple con variables transformadas para la rotación del personal
 
 ```{r}
 # Ajustar modelo con variables transformadas
@@ -714,10 +719,14 @@ kable(
   scroll_box(width = "100%", height = "400px")
 ```
 
+### 4.4 Interpretacion de los coeficientes del modelo e identificacion de las covariables significativas
 
+Los resultados del modelo logístico múltiple con variables transformadas muestran que las covariables estadísticamente significativas asociadas a la rotación fueron los años de experiencia, el departamento de Ventas, la satisfacción laboral y la realización de horas extra. En particular, los años de experiencia presentan un efecto negativo sobre la rotación, lo que indica que a mayor experiencia disminuyen los odds de rotación. Por el contrario, pertenecer al departamento de Ventas y realizar horas extra incrementan significativamente los odds de rotación, siendo esta última la variable de mayor impacto en el modelo. Asimismo, mayores niveles de satisfacción laboral se asocian con menores odds de rotación. En cambio, la distancia a la casa y el departamento de RH no resultaron significativos al 5%, mientras que los años con el mismo jefe mostraron una significancia marginal.
 
 
 ## 5. Evaluacion del modelo 
+
+### 5.1 AIC
 
 ```{r}
 
@@ -725,6 +734,9 @@ AIC(modelo, modelo_log)
 
 ```
 
+La comparación mediante el criterio de información de Akaike (AIC) mostró que el modelo con variables transformadas (modelo_log) presenta un mejor ajuste que el modelo original. En particular, el modelo sin transformación obtuvo un AIC de 789.48, mientras que el modelo transformado alcanzó un AIC de 773.06. Dado que valores menores de AIC indican un mejor equilibrio entre ajuste y parsimonia, se concluye que el modelo con transformación logarítmica es preferible. Además, la diferencia entre ambos modelos fue de 16.42 unidades, lo que constituye evidencia muy fuerte a favor del modelo transformado.
+
+### 5.2 Delta AIC y Delta BIC
 ```{r}
 # Calcular AIC y BIC de ambos modelos
 aic_tab <- AIC(modelo, modelo_log)
@@ -762,13 +774,140 @@ resultado
 
 ```
 
+Los valores de Delta AIC y Delta BIC fueron de 16.42, lo que constituye evidencia muy fuerte a favor del modelo con variables transformadas. Por ello, se seleccionó modelo_log como modelo final.
 
+### 5.3 Matriz de confunsion
 
+```{r}
+# 1. Split 70/30
+set.seed(123)
+id_train <- sample(seq_len(nrow(rotacion)), size = 0.7 * nrow(rotacion))
+train <- rotacion[id_train, ]
+test  <- rotacion[-id_train, ]
 
+# 2. Crear variables log en train y test
+train <- train %>%
+  mutate(
+    log_distancia_casa = log1p(distancia_casa),
+    log_anos_experiencia = log1p(anos_experiencia),
+    log_anos_jefe = log1p(anos_acargo_con_mismo_jefe)
+  )
 
+test <- test %>%
+  mutate(
+    log_distancia_casa = log1p(distancia_casa),
+    log_anos_experiencia = log1p(anos_experiencia),
+    log_anos_jefe = log1p(anos_acargo_con_mismo_jefe)
+  )
 
+# 3. Ajustar modelo
+modelo_log <- glm(
+  factor(rotacion) ~ log_distancia_casa + log_anos_experiencia +
+    log_anos_jefe + factor(departamento) +
+    factor(satisfacion_laboral) + factor(horas_extra),
+  data = train,
+  family = "binomial"
+)
 
+# 4. Predicciones en test
+test$prob <- predict(modelo_log, newdata = test, type = "response")
+test$pred <- ifelse(test$prob > 0.35, "Si", "No")
 
+# 5. Asegurar mismo orden de categorías
+test$rotacion <- factor(test$rotacion, levels = c("No", "Si"))
+test$pred     <- factor(test$pred, levels = c("No", "Si"))
+
+# 6. Matriz de confusión
+mc <- table(Real = test$rotacion, Prediccion = test$pred)
+
+# 7. Pasar matriz a data frame
+mc_df <- as.data.frame(mc)
+
+# 8. Etiquetas para cada celda
+mc_df <- mc_df %>%
+  mutate(
+    tipo = case_when(
+      Real == "Si" & Prediccion == "Si" ~ "Verdaderos Positivos",
+      Real == "Si" & Prediccion == "No" ~ "Falsos Negativos",
+      Real == "No" & Prediccion == "Si" ~ "Falsos Positivos",
+      Real == "No" & Prediccion == "No" ~ "Verdaderos Negativos"
+    ),
+    etiqueta = paste0(tipo, " = ", Freq)
+  )
+
+# Opcional: cambiar etiquetas de ejes
+mc_df$Real <- factor(mc_df$Real,
+                     levels = c("No", "Si"),
+                     labels = c("No Rotara", "Rotara"))
+
+mc_df$Prediccion <- factor(mc_df$Prediccion,
+                           levels = c("No", "Si"),
+                           labels = c("No Rotara", "Rotara"))
+
+# 9. Gráfico tipo matriz de confusión
+ggplot(mc_df, aes(x = Prediccion, y = Real, fill = tipo)) +
+  geom_tile(color = "white", size = 1) +
+  geom_text(aes(label = etiqueta), size = 5) +
+  scale_fill_manual(
+    values = c(
+      "Falsos Negativos" = "#F79633",
+      "Falsos Positivos" = "#FF2D2D",
+      "Verdaderos Negativos" = "#00A000",
+      "Verdaderos Positivos" = "#3A90E5"
+    )
+  ) +
+  labs(
+    title = "Matriz de Confusion",
+    x = "Predicciones",
+    y = "Resultados Reales",
+    fill = "Clasificacion"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+La matriz de confusión evidencia que el modelo logró una adecuada clasificación de la clase negativa, con 338 verdaderos negativos, mientras que para la clase positiva identificó correctamente 26 verdaderos positivos. No obstante, se observaron 49 falsos negativos y 28 falsos positivos, lo que indica que el modelo conserva una mejor capacidad de especificidad que de sensibilidad. En términos prácticos, el modelo es más eficaz para reconocer empleados sin riesgo de rotación que para detectar oportunamente a aquellos que efectivamente rotarán. 
+
+```{r}
+cutoffs <- seq(0.10, 0.50, by = 0.05)
+
+tabla_cutoffs <- lapply(cutoffs, function(corte) {
+  
+  pred <- ifelse(test$prob > corte, "Si", "No")
+  pred <- factor(pred, levels = c("No", "Si"))
+  real <- factor(test$rotacion, levels = c("No", "Si"))
+  
+  mc <- table(Real = real, Pred = pred)
+  
+  VP <- mc["Si", "Si"]
+  FN <- mc["Si", "No"]
+  VN <- mc["No", "No"]
+  FP <- mc["No", "Si"]
+  
+  sensibilidad <- VP / (VP + FN)
+  especificidad <- VN / (VN + FP)
+  accuracy <- (VP + VN) / sum(mc)
+  precision <- ifelse((VP + FP) == 0, NA, VP / (VP + FP))
+  pct_intervenidos <- mean(pred == "Si")
+  
+  data.frame(
+    cutoff = corte,
+    sensibilidad = round(sensibilidad, 4),
+    especificidad = round(especificidad, 4),
+    accuracy = round(accuracy, 4),
+    precision = round(precision, 4),
+    pct_intervenidos = round(pct_intervenidos * 100, 2)
+  )
+})
+
+tabla_cutoffs <- do.call(rbind, tabla_cutoffs)
+tabla_cutoffs
+```
+
+La tabla evidencia un compromiso entre sensibilidad y especificidad según el punto de corte seleccionado. Cutoffs bajos aumentan la sensibilidad y permiten detectar más empleados en riesgo, pero incrementan significativamente el porcentaje de intervención. Por el contrario, cutoffs altos mejoran la especificidad y la precisión, aunque reducen la capacidad del modelo para identificar casos reales de rotación. Considerando que el objetivo del análisis es detectar empleados en riesgo sin intervenir una proporción excesiva de la plantilla, el cutoff de 0.35 se considera el más adecuado, ya que ofrece un equilibrio razonable entre sensibilidad, especificidad, accuracy y porcentaje de empleados intervenidos. 
+
+El cutoff de la matriz de confusion se escogio teniendo en cuenta esta tabla debido a que tambien hay que tener en cuenta que los recursos en una empresa son limitados por lo que se escogio un cutoff razonable.
+
+### 5.4 Curva ROC
 
 ```{r}
 test <- test %>%
@@ -794,7 +933,7 @@ plot(
   roc_log,
   col = "red",
   lwd = 2,
-  main = "Curva ROC - Modelo logístico"
+  main = "Curva ROC - Modelo logistico"
 )
 
 legend(
@@ -806,6 +945,11 @@ legend(
 )
 ```
 
+La curva ROC muestra la capacidad del modelo para discriminar entre empleados que rotarán y empleados que no rotarán, considerando todos los posibles puntos de corte. En este caso, la curva se encuentra claramente por encima de la diagonal de referencia, lo que indica que el modelo tiene un desempeño superior al de una clasificación aleatoria.
+
+El valor del área bajo la curva (AUC = 0.773) sugiere que el modelo posee una capacidad discriminante aceptable a buena. En términos prácticos, esto significa que, al comparar aleatoriamente un empleado que sí rotará con uno que no rotará, el modelo asignará una probabilidad más alta de rotación al empleado correcto en aproximadamente 77.3% de los casos.
+
+Aunque el modelo no alcanza un nivel de discriminación excelente, el resultado obtenido indica que sí tiene utilidad predictiva para apoyar la identificación de empleados en riesgo de rotación. En consecuencia, la curva ROC respalda que el modelo final tiene un desempeño razonable para fines de clasificación, especialmente si se acompaña de una adecuada selección del punto de corte según los objetivos de intervención.
 
 ## 6. Predicciones
 
@@ -880,14 +1024,9 @@ predecir_individuo <- function(modelo, cutoff = 0.5) {
   
   return(resultado)
 }
-```
 
-```{r}
-predecir_individuo(modelo_log, cutoff = 0.5)
-```
-```{r}
 resultados_pred <- bind_rows(lapply(1:10, function(i) {
-  predecir_individuo(modelo_log, cutoff = 0.5)
+  predecir_individuo(modelo_log, cutoff = 0.35)
 }))
 
 resultados_pred
@@ -898,5 +1037,8 @@ Para la etapa de prediccion se genero un individuo hipotetico de manera aleatori
 
 ## 7. Conclusiones 
 
+En primer lugar, es fundamental mejorar el ambiente laboral, especialmente en áreas con mayor riesgo como Ventas. Esto implica fortalecer la comunicación entre jefes y empleados, promover liderazgo más cercano, brindar retroalimentación frecuente y desarrollar programas de bienestar organizacional. En segundo lugar, la empresa debería fortalecer los incentivos económicos y no económicos, ya sea mediante bonos de desempeño, reconocimientos, oportunidades de crecimiento, planes de carrera y mayor claridad en las posibilidades de promoción interna. Esto ayudaría a elevar la satisfacción laboral y, con ello, a reducir la intención de rotación.
 
+Adicionalmente, dado que las horas extra fueron la variable con mayor impacto positivo sobre la rotación, la empresa debería implementar medidas orientadas a redistribuir la carga de trabajo. Entre estas acciones se recomienda reducir la dependencia de horas extra, reorganizar los turnos, contratar más personal en áreas críticas y revisar la asignación de tareas para evitar sobrecarga. Esta estrategia no solo disminuiría el desgaste físico y emocional de los trabajadores, sino que también podría mejorar el equilibrio entre vida personal y trabajo, reduciendo así la probabilidad de rotación.
 
+Por ultimo, la empresa puede utilizar el modelo estimado como una herramienta de apoyo para identificar empleados en mayor riesgo de rotación y focalizar intervenciones preventivas. Sin embargo, más allá de la predicción, el hallazgo más importante es que la rotación parece responder a problemas de carga laboral, satisfacción y estabilidad organizacional. Por tanto, una política efectiva de reducción de rotación debe combinar analítica predictiva con acciones concretas sobre el clima laboral, la compensación y la distribución del trabajo.
