@@ -3,9 +3,15 @@ title: "Actividad_3_ Rotacion"
 author: "Carlos Preciado, Jefferson Martinez, Ricardo Vargas Murillo"
 date: "2026-03-17"
 output:
-   html_document:
-     code_folding: hide
-
+  html_document:
+    encoding: UTF-8
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    number_sections: true
+    code_folding : show
 ---
 
 ```{r setup, echo=FALSE}
@@ -38,7 +44,6 @@ library(ggstatsplot)
 library(pROC)
 library(corrplot)
 
-
 library(skimr)
 library(leaflet)
 library(broom)
@@ -47,13 +52,12 @@ library(car)
 library(performance)
 library(Metrics)
 library(rsample)
-
-
+library(purrr)
 ```
 
 # Problema: ROTACION DE CARGO 
 
-Mediate el siguiente problema se busca comprender y prever los factores que influyen en la rotación de empleados entre distintos cargos. La empresa ha recopilado datos históricos sobre el empleo de sus trabajadores, incluyendo variables como la antigüedad en el cargo actual, el nivel de satisfacción laboral, el salario actual, edad y otros factores relevantes. La gerencia planea desarrollar un modelo de regresión logística que permita estimar la probabilidad de que un empleado cambie de cargo en el próximo período y determinar cuales factores indicen en mayor proporción a estos cambios.
+Mediante el siguiente problema se busca comprender y prever los factores que influyen en la rotación de empleados entre distintos cargos. La empresa ha recopilado datos históricos sobre el empleo de sus trabajadores, incluyendo variables como la antigüedad en el cargo actual, el nivel de satisfacción laboral, el salario actual, edad y otros factores relevantes. La gerencia planea desarrollar un modelo de regresión logística que permita estimar la probabilidad de que un empleado cambie de cargo en el próximo período y determinar cuales factores indicen en mayor proporción a estos cambios.
 
 Para lograr identificar todo esto el markdown estará dividido en los siguientes pasos
 
@@ -197,11 +201,9 @@ Seleccionaremos 3 variables cualitativas para el estudio.
 
 ## 2. Analisis Univariado
 
-### Variable de **DISTANCIA**
+### Variables cuantitativas
 
 Realizamos los siguientes graficos resumen en donde usamos el raincloudgraph para poder resumir rapidamente las variables cuantitativas 
-
-
 
 ```{r, Grafico 1, fig.cap="Gráfico 1: Raincloud variables cuantitativas"}
 
@@ -234,7 +236,7 @@ ggplot(datos_long, aes(y = valor)) +
   theme_minimal()
 ```
 
-En el grafico 1 se observa como las 3 variables presentan distribucion asimentrica con atipicos, especialmente en la distancia a la casa y años de experiencia. La concentracion esta en varoles bajos en la variable años con el mismo jefe lo cual sugiere baja permanencia con un mismo jefe que se verificara mas adelante
+En el grafico 1 se observa como las 3 variables presentan distribucion asimentrica con atipicos, especialmente en la distancia a la casa y años de experiencia. La concentracion esta en varoles bajos en la variable años con el mismo jefe lo cual sugiere baja permanencia con un mismo jefe que se verificara mas adelante.
 
 
 ```{r, Grafico 2, fig.cap="Gráfico 2: Distancia a la casa segun rotacion"}
@@ -260,7 +262,7 @@ ggbetweenstats(
 )
 ```
 
-En el grafico 2 podemos ver como hay mas rotacion con las personas que viven mas lejos de entrada la mediana es mayor y hay algunos puntos atipicos
+En el grafico 2, la mediana de distancia es 7 para el grupo No y 9 para el grupo Sí, esto sugiere que, en general, las personas que sí rotan viven un poco más lejos de la casa que las que no rotan. La prueba de Mann-Whitney evidenció diferencias estadísticamente significativas entre ambos grupos (p = 2.39e-03). No obstante, el tamaño del efecto fue pequeño (rango biserial = -0.12), lo que sugiere que, aunque la distancia a la casa se relaciona con la rotación, su influencia es limitada.
 
 
 ```{r, Grafico 3,  fig.cap="Gráfico 3: Anos de experiencia segun rotacion"}
@@ -285,6 +287,8 @@ ggbetweenstats(
   ylab = "Valor"
 )
 ```
+
+El gráfico evidencia que los empleados con rotación presentan una menor mediana de años de experiencia (7) en comparación con aquellos sin rotación (10). La prueba de Mann-Whitney mostró diferencias estadísticamente significativas entre ambos grupos (p = 2.40e-14). Además, el tamaño del efecto fue moderado (rango biserial = 0.31), lo que indica que los años de experiencia constituyen una variable importante asociada a la rotación del personal.
 
 
 Los años de experiencia en general nos idican como a mayor cantidad de años hay menor rotacion, teniendo una relacion negativa entre años y rotacion 
@@ -455,7 +459,7 @@ kable(tabla_horas,
 ```
 
 
-```{r}
+```{r, fig.cap="Gráfico 5: Grafico de barras para las variables categoricas"}
 
 par(mfrow = c(1, 4))
 
@@ -487,66 +491,166 @@ barplot(table(rotacion$rotacion),
 
 ## 3. Analisis Bivariado
 
+
+
 A continuacion 
 
 ```{r}
-rotacion$rotacion <- ifelse(rotacion$rotacion == "Si", 1, 0)
+datos <- rotacion
+
+datos$rotacion <- ifelse(datos$rotacion == "Si", 1, 0)
+datos$rotacion <- factor(datos$rotacion)
 ```
 
-
 ```{r}
+# Modelos
 analisis1 <- glm(factor(rotacion) ~ distancia_casa, data = rotacion, family = binomial)
-summary(analisis1)
-```
-
-```{r}
 analisis2 <- glm(factor(rotacion) ~ anos_experiencia, data = rotacion, family = binomial)
-summary(analisis2)
-```
-
-```{r}
 analisis3 <- glm(factor(rotacion) ~ anos_acargo_con_mismo_jefe, data = rotacion, family = binomial)
-summary(analisis3)
-```
-
-```{r}
 analisis4 <- glm(factor(rotacion) ~ factor(satisfacion_laboral), data = rotacion, family = binomial)
-summary(analisis4)
-```
-
-```{r}
 analisis5 <- glm(factor(rotacion) ~ factor(departamento), data = rotacion, family = binomial)
-summary(analisis5)
-```
-
-```{r}
 analisis6 <- glm(factor(rotacion) ~ factor(horas_extra), data = rotacion, family = binomial)
-summary(analisis6)
+
+# Lista de modelos
+modelos <- list(
+  distancia_casa = analisis1,
+  anos_experiencia = analisis2,
+  anos_acargo_con_mismo_jefe = analisis3,
+  satisfacion_laboral = analisis4,
+  departamento = analisis5,
+  horas_extra = analisis6
+)
+
+# Tabla consolidada
+tabla_modelos <- imap_dfr(modelos, ~{
+  tidy(.x) %>%
+    mutate(
+      modelo = .y,
+      OR = exp(estimate),
+      AIC = AIC(.x),
+      null_deviance = .x$null.deviance,
+      residual_deviance = .x$deviance
+    ) %>%
+    select(modelo, term, estimate, std.error, statistic, p.value, OR,
+           null_deviance, residual_deviance, AIC)
+})
+
+# Quitar intercepto
+tabla_modelos <- tabla_modelos %>%
+  filter(term != "(Intercept)")
+
+# Formato en notación científica
+tabla_modelos <- tabla_modelos %>%
+  mutate(across(where(is.numeric), ~ formatC(.x, format = "e", digits = 4)))
+
+# Tabla bonita
+kable(
+  tabla_modelos,
+  format = "html",
+  caption = "Tabla X. Resultados de los modelos logísticos bivariados para la rotación del personal",
+  col.names = c(
+    "Modelo", "Término", "Coeficiente", "Error estándar", "Estadístico z",
+    "p-valor", "Odds Ratio", "Devianza nula", "Devianza residual", "AIC"
+  ),
+  align = "l"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  scroll_box(width = "100%", height = "400px")
 ```
 
+La tabla presenta los resultados de los modelos logísticos bivariados estimados para evaluar la relación individual entre cada covariable y la rotación del personal. En cada modelo se reportan el coeficiente estimado, el error estándar, el estadístico z, el p-valor, el odds ratio (OR), la devianza nula, la devianza residual y el AIC. En general, un coeficiente positivo indica que la variable incrementa la probabilidad de rotación, mientras que un coeficiente negativo sugiere una disminución en dicha probabilidad. De igual forma, un odds ratio mayor que 1 indica aumento en los odds de rotación, mientras que un valor menor que 1 indica reducción.
+
+Para la variable distancia a la casa, el coeficiente fue positivo (0.0247) y estadísticamente significativo (p = 0.00295), con un odds ratio de 1.0250. Esto indica que, por cada unidad adicional en la distancia entre la casa y el trabajo, los odds de rotación aumentan aproximadamente en 2.5%. Por tanto, esta variable presenta una relación positiva y significativa con la rotación del personal.
+
+En el caso de años de experiencia, el coeficiente fue negativo (-0.0777) y altamente significativo (p < 0.001), con un odds ratio de 0.9252. Esto sugiere que, por cada año adicional de experiencia, los odds de rotación disminuyen aproximadamente en 7.5%. En consecuencia, una mayor experiencia laboral se asocia con una menor probabilidad de rotación.
+
+La variable años a cargo con el mismo jefe también presentó un coeficiente negativo (-0.1414) y significativo (p < 0.001), con un odds ratio de 0.8682. Esto indica que una mayor permanencia bajo el mismo jefe reduce los odds de rotación en aproximadamente 13.2% por cada unidad adicional, evidenciando una relación negativa entre estabilidad en la supervisión y rotación.
+
+Respecto a satisfacción laboral, se observa que las categorías superiores presentan coeficientes negativos en comparación con la categoría de referencia. La categoría 2 no resultó significativa al 5% (p = 0.0555), aunque muestra una tendencia negativa. En cambio, las categorías 3 y 4 sí fueron estadísticamente significativas, con coeficientes de -0.4028 y -0.8401, respectivamente, y odds ratios menores que 1. Esto indica que niveles más altos de satisfacción laboral reducen la probabilidad de rotación, siendo el efecto más fuerte en la categoría 4. En términos sustantivos, a medida que aumenta la satisfacción laboral, disminuyen los odds de que el empleado presente rotación.
+
+Para la variable departamento, la categoría RH no mostró una relación estadísticamente significativa con la rotación (p = 0.2533), por lo que no se encontró evidencia suficiente para afirmar diferencias frente a la categoría base. Por su parte, la categoría Ventas sí presentó un coeficiente positivo y significativo (0.4812; p = 0.00132), con un odds ratio de 1.6179. Esto sugiere que los empleados del área de ventas tienen odds de rotación aproximadamente 61.8% mayores que los del departamento de referencia.
+
+Finalmente, la variable horas extra mostró uno de los efectos más fuertes del análisis bivariado. La categoría Sí presentó un coeficiente positivo de 1.3274, altamente significativo (p < 0.001), y un odds ratio de 3.7712. Esto indica que los empleados que realizan horas extra tienen aproximadamente 3.77 veces los odds de rotación en comparación con quienes no realizan horas extra. En consecuencia, las horas extra constituyen un factor fuertemente asociado con la rotación del personal.
+
+En conjunto, los resultados bivariados evidencian que la rotación del personal aumenta con una mayor distancia a la casa, pertenecer al departamento de ventas y realizar horas extra. Por el contrario, una mayor experiencia laboral, más años con el mismo jefe y mayores niveles de satisfacción laboral se asocian con una menor probabilidad de rotación. Entre todas las variables analizadas, horas extra parece ser la de mayor impacto individual, seguida por años con el mismo jefe, años de experiencia y satisfacción laboral.
 
 ## 4. Estimacion del modelo
 
 ### 4.1 Transformacion de las variables con LOG1 para reducir la asimetria, estabilizar la varianza. 
 
-
 ```{r}
+set.seed(123)
+
+# Split 70/30
+id_train <- sample(seq_len(nrow(rotacion)), size = 0.7 * nrow(rotacion))
+
+train <- rotacion[id_train, ]
+test  <- rotacion[-id_train, ]
+
+# Ajustar modelo
 modelo <- glm(
-  factor(rotacion) ~ distancia_casa + anos_experiencia + 
-      anos_acargo_con_mismo_jefe +
-     factor(departamento) + factor(satisfacion_laboral)  + factor(horas_extra) ,
-  data = rotacion,
+  factor(rotacion) ~ distancia_casa + anos_experiencia +
+    anos_acargo_con_mismo_jefe +
+    factor(departamento) + factor(satisfacion_laboral) + factor(horas_extra),
+  data = train,
   family = "binomial"
 )
 
-summary(modelo)
+# Tabla de coeficientes
+tabla_modelo <- tidy(modelo, conf.int = TRUE) %>%
+  mutate(
+    OR = exp(estimate),
+    IC_inf_OR = exp(conf.low),
+    IC_sup_OR = exp(conf.high),
+    signif = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01  ~ "**",
+      p.value < 0.05  ~ "*",
+      p.value < 0.1   ~ ".",
+      TRUE ~ ""
+    )
+  ) %>%
+  filter(term != "(Intercept)") %>%
+  select(term, estimate, std.error, statistic, p.value, signif, OR, IC_inf_OR, IC_sup_OR) %>%
+  mutate(across(c(estimate, std.error, statistic, p.value, OR, IC_inf_OR, IC_sup_OR),
+                ~ formatC(.x, format = "e", digits = 4)))
+
+# Medidas de ajuste
+aic_modelo <- formatC(AIC(modelo), format = "e", digits = 4)
+null_dev <- formatC(modelo$null.deviance, format = "e", digits = 4)
+resid_dev <- formatC(modelo$deviance, format = "e", digits = 4)
+
+# Tabla bonita
+kable(
+  tabla_modelo,
+  format = "html",
+  caption = paste0(
+    "Tabla X. Resultados del modelo logístico múltiple para la rotación del personal. ",
+    "Devianza nula = ", null_dev,
+    ", Devianza residual = ", resid_dev,
+    ", AIC = ", aic_modelo, "."
+  ),
+  col.names = c(
+    "Término", "Coeficiente", "Error estándar", "Estadístico z",
+    "p-valor", "Sig.", "Odds Ratio", "IC 95% inferior", "IC 95% superior"
+  ),
+  align = "l"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  scroll_box(width = "100%", height = "400px")
 ```
 
 
 ```{r}
-
-
-
+# Ajustar modelo con variables transformadas
 rotacion <- rotacion %>%
   mutate(
     log_distancia_casa = log1p(distancia_casa),
@@ -555,14 +659,59 @@ rotacion <- rotacion %>%
   )
 
 modelo_log <- glm(
-  factor(rotacion) ~ log_distancia_casa + log_anos_experiencia + 
-      log_anos_jefe +
-      factor(departamento) + factor(satisfacion_laboral)  + factor(horas_extra),
-  data = rotacion,
+  factor(rotacion) ~ log_distancia_casa + log_anos_experiencia +
+    log_anos_jefe + factor(departamento) +
+    factor(satisfacion_laboral) + factor(horas_extra),
+  data = train,
   family = "binomial"
 )
 
-summary(modelo_log)
+# Tabla de coeficientes
+tabla_modelo_log <- tidy(modelo_log, conf.int = TRUE) %>%
+  mutate(
+    OR = exp(estimate),
+    IC_inf_OR = exp(conf.low),
+    IC_sup_OR = exp(conf.high),
+    signif = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01  ~ "**",
+      p.value < 0.05  ~ "*",
+      p.value < 0.1   ~ ".",
+      TRUE ~ ""
+    )
+  ) %>%
+  filter(term != "(Intercept)") %>%
+  select(term, estimate, std.error, statistic, p.value, signif, OR, IC_inf_OR, IC_sup_OR) %>%
+  mutate(across(c(estimate, std.error, statistic, p.value, OR, IC_inf_OR, IC_sup_OR),
+                ~ formatC(.x, format = "e", digits = 4)))
+
+# Medidas de ajuste
+aic_modelo <- formatC(AIC(modelo_log), format = "e", digits = 4)
+null_dev <- formatC(modelo_log$null.deviance, format = "e", digits = 4)
+resid_dev <- formatC(modelo_log$deviance, format = "e", digits = 4)
+
+# Tabla bonita
+kable(
+  tabla_modelo_log,
+  format = "html",
+  caption = paste0(
+    "Tabla X. Resultados del modelo logístico múltiple con variables transformadas para la rotación del personal. ",
+    "Devianza nula = ", null_dev,
+    ", Devianza residual = ", resid_dev,
+    ", AIC = ", aic_modelo, "."
+  ),
+  col.names = c(
+    "Término", "Coeficiente", "Error estándar", "Estadístico z",
+    "p-valor", "Sig.", "Odds Ratio", "IC 95% inferior", "IC 95% superior"
+  ),
+  align = "l"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  scroll_box(width = "100%", height = "400px")
 ```
 
 
